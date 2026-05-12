@@ -107,3 +107,16 @@ http://localhost:8081/swagger-ui.html
 ## Puerto
 
 La aplicación escucha en el puerto **8081** (configurado en `application.properties`).
+
+---
+
+## CI/CD
+
+El pipeline se activa automáticamente al hacer push a la rama `deploy` con cambios en `back-Despachos_SpringBoot/**`.
+
+| Etapa | Descripción |
+|-------|-------------|
+| `build-and-push` | Compila la imagen Docker y la publica en Docker Hub con tags `:latest` y `:<git-sha>` |
+| `deploy-to-ec2` | Descarga la imagen y la ejecuta en la instancia EC2 (requiere secretos EC2 configurados) |
+
+Imagen publicada: `DOCKERHUB_USERNAME/innovatech-backend-despachos`

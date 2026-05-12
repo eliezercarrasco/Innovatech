@@ -124,3 +124,16 @@ El frontend consume los siguientes endpoints mediante Axios:
 | Crear venta | POST | `/api/v1/ventas` |
 | Actualizar venta | PUT | `/api/v1/ventas/{idVenta}` |
 | Eliminar venta | DELETE | `/api/v1/ventas/{idVenta}` |
+
+---
+
+## CI/CD
+
+El pipeline se activa automáticamente al hacer push a la rama `deploy` con cambios en `front_despacho/**`.
+
+| Etapa | Descripción |
+|-------|-------------|
+| `build-and-push` | Ejecuta `npm run build` dentro de Docker y publica la imagen en Docker Hub con tags `:latest` y `:<git-sha>` |
+| `deploy-to-ec2` | Descarga la imagen y la ejecuta en la instancia EC2 con nginx en puerto 8080 (requiere secretos EC2 configurados) |
+
+Imagen publicada: `DOCKERHUB_USERNAME/innovatech-frontend`
