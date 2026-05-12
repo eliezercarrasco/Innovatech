@@ -208,12 +208,73 @@ Swagger UI: http://localhost:8082/swagger-ui.html
 
 ## Persistencia de Datos
 
-Se utilizan **named volumes** (volúmenes nombrados) en lugar de bind mounts por las siguientes razones:
+Se utilizan **named volumes** (volúmenes nombrados) en lugar de bind mounts.
 
-- **Portabilidad:** los volúmenes nombrados son gestionados completamente por Docker y no dependen de la estructura de directorios del host, lo que los hace reproducibles en cualquier entorno.
-- **Gestión por Docker:** Docker controla permisos, ubicación y ciclo de vida del volumen, evitando conflictos con el sistema de archivos del host.
-- **Rendimiento:** en sistemas Linux/macOS, los named volumes tienen mejor rendimiento de I/O que los bind mounts para bases de datos.
-- **Separación de responsabilidades:** los datos persisten independientemente del contenedor; al hacer `docker-compose down` los datos se conservan, y solo `docker-compose down -v` los elimina intencionalmente.
+### Volúmenes definidos
+
+| Volumen | Servicio | Mount point en contenedor |
+|---------|----------|--------------------------|
+| `mysql-despachos-data` | `db-despachos` | `/var/lib/mysql` |
+| `mysql-ventas-data` | `db-ventas` | `/var/lib/mysql` |
+
+### Por qué named volumes y no bind mounts
+
+| Criterio | Named Volume | Bind Mount |
+|----------|-------------|------------|
+| Gestión | Docker gestiona permisos y ubicación | Depende del sistema de archivos del host |
+| Portabilidad | Funciona igual en Linux, macOS, Windows y EC2 | Requiere que exista el path exacto en el host |
+| Rendimiento I/O | Optimizado por Docker | Variable según OS y filesystem |
+| Aislamiento | Ciclo de vida independiente del contenedor | Acoplado al directorio del host |
+| Despliegue en AWS | Transparente — Docker crea el volumen automáticamente | Requiere crear directorios en EC2 manualmente |
+
+### Demostración de persistencia
+
+```bash
+# 1. Levantar el stack
+docker compose up -d
+
+# 2. Insertar datos
+curl -X POST http://localhost/api/v1/ventas \
+  -H "Content-Type: application/json" \
+  -d '{"direccionCompra":"Av. Test 123","valorCompra":9990,"fechaCompra":"2026-05-12","despachoGenerado":false}'
+
+# 3. Verificar datos insertados
+curl http://localhost/api/v1/ventas
+# → [{"idVenta":1,"direccionCompra":"Av. Test 123",...}]
+
+# 4. Bajar contenedores SIN eliminar volúmenes
+docker compose down
+# Los volúmenes siguen existentes:
+docker volume ls   # → evaluacionparcial2_mysql-despachos-data / mysql-ventas-data
+
+# 5. Levantar nuevamente
+docker compose up -d
+
+# 6. Verificar que los datos persisten
+curl http://localhost/api/v1/ventas
+# → [{"idVenta":1,"direccionCompra":"Av. Test 123",...}]  ← dato original intacto
+```
+
+### Destrucción controlada
+
+```bash
+# Elimina contenedores Y volúmenes (reseteo total de datos)
+docker compose down -v
+
+# Después de docker compose up -d los datos estarán vacíos:
+curl http://localhost/api/v1/ventas   # → []
+```
+
+> **`down` vs `down -v`**: `docker compose down` elimina contenedores y redes pero **preserva** los volúmenes. `docker compose down -v` además elimina los volúmenes nombrados. Usar `-v` solo cuando se quiere un reseteo completo intencional de datos.
+
+### Ubicación física en el host
+
+```bash
+docker volume inspect evaluacionparcial2_mysql-despachos-data
+# "Mountpoint": "/var/lib/docker/volumes/evaluacionparcial2_mysql-despachos-data/_data"
+```
+
+Los datos de MySQL residen en el filesystem de Docker Engine, no en el directorio del proyecto, lo que garantiza que ningún `git clean` o limpieza del workspace los elimine accidentalmente.
 
 ---
 
