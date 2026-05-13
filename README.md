@@ -283,3 +283,4 @@ Los datos de MySQL residen en el filesystem de Docker Engine, no en el directori
 - **Eliezer Carrasco** - [elie.carrasco@duocuc.cl](mailto:elie.carrasco@duocuc.cl)
 
 *Evaluación Parcial N°2 - Herramientas DevOps (ISY1101) - DuocUC*
+Trigger pipeline CI/CD
