@@ -43,11 +43,13 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            docker network create innovatech-net || true
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/innovatech-backend-despachos:latest
             docker stop backend-despachos || true
             docker rm backend-despachos || true
             docker run -d \
               --name backend-despachos \
+              --network innovatech-net \
               --restart unless-stopped \
               -p 8081:8081 \
               -e DB_ENDPOINT=${{ secrets.DB_ENDPOINT }} \
