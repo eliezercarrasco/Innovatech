@@ -1,5 +1,7 @@
 # Frontend - Sistema de Despachos (Innovatech Chile)
 
+<!-- Pipeline CI/CD activo -->
+
 ## Descripción
 
 Aplicación web SPA desarrollada en React para la gestión integral de **despachos** y **ventas** de Innovatech Chile. Provee una interfaz de usuario moderna con operaciones CRUD completas para ambas entidades, consumiendo las APIs REST de los backends Spring Boot.
