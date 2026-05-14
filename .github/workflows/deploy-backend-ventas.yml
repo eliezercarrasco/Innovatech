@@ -56,7 +56,7 @@ jobs:
             set -e
 
             REPO_DIR=/home/ubuntu/innovatech
-            REPO_URL=https://github.com/eliezercarrasco/Evaluacion2HerramientasDevops.git
+            REPO_URL=https://github.com/eliezercarrasco/Innovatech.git
 
             # Clonar repositorio si no existe, o actualizar si ya existe
             if [ -d "$REPO_DIR/.git" ]; then

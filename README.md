@@ -46,7 +46,7 @@ Innovatech Chile es una empresa de logística que requiere un sistema centraliza
 ## Estructura del Repositorio
 
 ```
-evaluacionParcial2/
+Innovatech/
 ├── docker-compose.yml                          # Orquestación de los 5 servicios
 ├── README.md
 ├── .github/
@@ -87,8 +87,8 @@ evaluacionParcial2/
 
 ```bash
 # Clonar el repositorio
-git clone <URL_DEL_REPO>
-cd evaluacionParcial2
+git clone https://github.com/eliezercarrasco/Innovatech.git
+cd Innovatech
 
 # Levantar todos los servicios
 docker-compose up -d
