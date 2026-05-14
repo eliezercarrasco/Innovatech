@@ -12,7 +12,7 @@ services:
   db-despachos:
     image: mysql:8.0
     container_name: db-despachos
-    restart: unless-stopped
+    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: despachos_db
@@ -32,7 +32,7 @@ services:
   db-ventas:
     image: mysql:8.0
     container_name: db-ventas
-    restart: unless-stopped
+    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: ventas_db
@@ -52,7 +52,7 @@ services:
   backend-despachos:
     image: eliezercarrasco/innovatech-backend-despachos:latest
     container_name: backend-despachos
-    restart: unless-stopped
+    restart: always
     environment:
       DB_ENDPOINT: db-despachos
       DB_PORT: 3306
@@ -76,7 +76,7 @@ services:
   backend-ventas:
     image: eliezercarrasco/innovatech-backend-ventas:latest
     container_name: backend-ventas
-    restart: unless-stopped
+    restart: always
     environment:
       DB_ENDPOINT: db-ventas
       DB_PORT: 3306
@@ -100,7 +100,7 @@ services:
   frontend:
     image: eliezercarrasco/innovatech-frontend:latest
     container_name: frontend
-    restart: unless-stopped
+    restart: always
     environment:
       BACKEND_DESPACHOS_HOST: backend-despachos
       BACKEND_VENTAS_HOST: backend-ventas
