@@ -8,6 +8,7 @@ on:
     paths:
       - "front_despacho/**"
       - "docker-compose.prod.yml"
+  workflow_dispatch:
 
 jobs:
   build-and-push:

@@ -7,6 +7,7 @@ on:
       - deploy
     paths:
       - "back-Ventas_SpringBoot/**"
+  workflow_dispatch:
 
 jobs:
   build-and-push:
