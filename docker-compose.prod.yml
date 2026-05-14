@@ -1,3 +1,4 @@
+# Innovatech Chile Logistics - Produccion
 networks:
   innovatech-network:
     driver: bridge
@@ -17,8 +18,6 @@ services:
       MYSQL_DATABASE: despachos_db
       MYSQL_USER: despachos_user
       MYSQL_PASSWORD: despachos_pass
-    ports:
-      - "3306:3306"
     volumes:
       - mysql-despachos-data:/var/lib/mysql
     networks:
@@ -39,8 +38,6 @@ services:
       MYSQL_DATABASE: ventas_db
       MYSQL_USER: ventas_user
       MYSQL_PASSWORD: ventas_pass
-    ports:
-      - "3307:3306"
     volumes:
       - mysql-ventas-data:/var/lib/mysql
     networks:
@@ -53,9 +50,7 @@ services:
       start_period: 30s
 
   backend-despachos:
-    build:
-      context: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
-      dockerfile: Dockerfile
+    image: eliezercarrasco/innovatech-backend-despachos:latest
     container_name: backend-despachos
     restart: unless-stopped
     environment:
@@ -79,9 +74,7 @@ services:
       start_period: 60s
 
   backend-ventas:
-    build:
-      context: ./back-Ventas_SpringBoot/Springboot-API-REST
-      dockerfile: Dockerfile
+    image: eliezercarrasco/innovatech-backend-ventas:latest
     container_name: backend-ventas
     restart: unless-stopped
     environment:
@@ -105,9 +98,7 @@ services:
       start_period: 60s
 
   frontend:
-    build:
-      context: ./front_despacho
-      dockerfile: Dockerfile
+    image: eliezercarrasco/innovatech-frontend:latest
     container_name: frontend
     restart: unless-stopped
     environment:

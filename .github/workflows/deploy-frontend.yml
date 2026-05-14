@@ -59,6 +59,7 @@ jobs:
             REPO_DIR=/home/ubuntu/innovatech
             REPO_URL=https://github.com/eliezercarrasco/Evaluacion2HerramientasDevops.git
 
+            # Clonar repositorio si no existe, o actualizar si ya existe
             if [ -d "$REPO_DIR/.git" ]; then
               cd $REPO_DIR && git pull origin main
             else
@@ -66,12 +67,16 @@ jobs:
               cd $REPO_DIR
             fi
 
+            # Autenticar Docker Hub para evitar rate limits en pulls
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
+            # Obtener la nueva imagen del frontend
             docker compose -f $REPO_DIR/docker-compose.prod.yml pull frontend
 
+            # Reiniciar solo el frontend sin afectar backends ni bases de datos
             docker compose -f $REPO_DIR/docker-compose.prod.yml up -d --no-deps frontend
 
+            # Limpiar imágenes antiguas para liberar espacio en disco
             docker image prune -f
 
             echo "Deploy frontend completado exitosamente"

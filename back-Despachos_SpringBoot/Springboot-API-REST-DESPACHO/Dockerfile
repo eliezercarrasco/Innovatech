@@ -28,4 +28,7 @@ ENV DB_ENDPOINT="" \
 
 EXPOSE 8081
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD wget -q -O /dev/null http://localhost:8081/api/v1/despachos || exit 1
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
