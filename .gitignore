@@ -39,3 +39,6 @@ dist-ssr/
 
 # OS
 Thumbs.db
+
+# Claude Code (herramienta de desarrollo — no va a producción)
+.claude/

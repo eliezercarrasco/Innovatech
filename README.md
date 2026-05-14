@@ -1,45 +1,95 @@
-# Innovatech Chile - Sistema de Logística y Ventas
+# Innovatech — Sistema de Logística y Ventas
+
+Plataforma de microservicios para gestión de despachos y ventas desplegada en AWS EC2 con pipeline CI/CD automatizado.
+
+---
+
+## Integrantes
+
+| Nombre | Correo |
+|--------|--------|
+| Eliezer Carrasco | elie.carrasco@duocuc.cl |
+| Maria Jose Velazques | mariajose.velazques@duocuc.cl |
+
+*Evaluación Parcial N°2 — Herramientas DevOps (ISY1101) — DuocUC*
+
+---
 
 ## Descripción del Proyecto
 
-Innovatech Chile es una empresa de logística que requiere un sistema centralizado para gestionar sus operaciones de **despachos** y **ventas**. Este repositorio contiene un monorepo con tres microservicios que conforman la plataforma: un frontend React para la interfaz de usuario y dos APIs REST Spring Boot independientes, cada una con su propia base de datos MySQL.
+Innovatech Chile es una empresa de logística que requiere un sistema centralizado para gestionar sus operaciones de **despachos** y **ventas**. La plataforma está compuesta por tres microservicios containerizados, una red Docker interna y un pipeline CI/CD que automatiza el despliegue en AWS EC2.
+
+### Componentes principales
+
+| Componente | Descripción |
+|---|---|
+| **Frontend** | Aplicación React/Vite servida por Nginx. Interfaz de usuario para gestión de ventas y despachos. Hace proxy inverso hacia ambos backends. |
+| **Backend Despachos** | API REST Spring Boot. Gestiona el ciclo de vida de los despachos logísticos. Expone Swagger UI. |
+| **Backend Ventas** | API REST Spring Boot. Gestiona registros de ventas. Expone Swagger UI. |
+| **MySQL Despachos** | Base de datos exclusiva para el servicio de despachos. Datos persistidos en named volume. |
+| **MySQL Ventas** | Base de datos exclusiva para el servicio de ventas. Datos persistidos en named volume. |
+
+---
+
+## Tecnologías Utilizadas
+
+| Capa | Tecnología | Versión |
+|---|---|---|
+| Frontend | React + Vite + TailwindCSS | 18 / 5 / 3 |
+| Backend | Spring Boot + Java | 3.4.4 / 17 |
+| Base de datos | MySQL | 8.0 |
+| Contenedores | Docker + Docker Compose | 27.x / 2.x |
+| Servidor web | Nginx (Alpine) | latest |
+| CI/CD | GitHub Actions | — |
+| Registry | Docker Hub | — |
+| Infraestructura | AWS EC2 (Ubuntu 24.04) | — |
+| Documentación API | SpringDoc OpenAPI (Swagger) | 2.7 |
 
 ---
 
 ## Arquitectura del Sistema
 
 ```
-                        ┌──────────────────────────────────────────┐
-                        │           innovatech-network              │
-                        │                                           │
-  Usuario  ──► :80 ──►  │  [frontend]                               │
-                        │      │                                    │
-                        │      ├──► :8081 ──► [backend-despachos]   │
-                        │      │                    │               │
-                        │      │              [db-despachos :3306]  │
-                        │      │                                    │
-                        │      └──► :8082 ──► [backend-ventas]      │
-                        │                         │                 │
-                        │                   [db-ventas :3306]       │
-                        └──────────────────────────────────────────┘
+  Internet
+      │
+      ▼ :80
+┌─────────────────────────────────────────────────┐
+│                innovatech-network                │
+│                  (bridge)                        │
+│                                                  │
+│  ┌─────────────┐                                 │
+│  │  frontend   │  Nginx + React SPA              │
+│  │  :8080      │  envsubst → proxy_pass dinámico │
+│  └──────┬──────┘                                 │
+│         │                                        │
+│    ┌────┴─────────────────────┐                  │
+│    │                          │                  │
+│    ▼ /api/v1/despachos        ▼ /api/v1/ventas   │
+│  ┌────────────────┐  ┌───────────────────┐       │
+│  │backend-despacho│  │  backend-ventas   │       │
+│  │ Spring Boot    │  │  Spring Boot      │       │
+│  │ :8081          │  │  :8081 → host8082 │       │
+│  └───────┬────────┘  └────────┬──────────┘       │
+│          │                    │                  │
+│  ┌───────▼────────┐  ┌────────▼──────────┐       │
+│  │  db-despachos  │  │    db-ventas      │       │
+│  │  MySQL 8.0     │  │    MySQL 8.0      │       │
+│  │  :3306         │  │    :3306          │       │
+│  └───────┬────────┘  └────────┬──────────┘       │
+│          │                    │                  │
+└──────────┼────────────────────┼──────────────────┘
+           ▼                    ▼
+   mysql-despachos-data   mysql-ventas-data
+      (named volume)        (named volume)
 ```
 
-- **3 microservicios** comunicados en red interna Docker
-- **2 bases de datos MySQL 8.0** con volúmenes nombrados para persistencia
-- Frontend desacoplado, consume ambas APIs via HTTP
+### Características de diseño
 
----
-
-## Tecnologías Utilizadas
-
-| Capa | Tecnología |
-|------|-----------|
-| Frontend | React 18, Vite 5, TailwindCSS 3, Axios, React Router DOM, SweetAlert2 |
-| Backend | Spring Boot 3.4.4, Java 17, Spring Data JPA, SpringDoc OpenAPI, Lombok |
-| Base de Datos | MySQL 8.0 |
-| Contenedores | Docker, Docker Compose |
-| CI/CD | GitHub Actions |
-| Infraestructura | AWS EC2 |
+- **Red interna Bridge**: todos los contenedores se comunican por nombre de servicio Docker, sin IPs hardcodeadas.
+- **Nginx como API Gateway**: el frontend hace proxy inverso hacia los backends usando `envsubst` para configurar hostnames en tiempo de arranque del contenedor.
+- **Bases de datos independientes**: cada microservicio tiene su propia instancia MySQL, evitando acoplamiento de datos.
+- **Usuarios no-root**: todos los Dockerfiles usan usuarios sin privilegios de root.
+- **Multi-stage builds**: imágenes finales livianas (Alpine) separadas del entorno de compilación.
 
 ---
 
@@ -47,27 +97,26 @@ Innovatech Chile es una empresa de logística que requiere un sistema centraliza
 
 ```
 Innovatech/
-├── docker-compose.yml                          # Orquestación de los 5 servicios
-├── README.md
+├── docker-compose.yml              # Stack local (build desde fuente)
+├── docker-compose.prod.yml         # Stack producción (imágenes Docker Hub)
+├── .env.example                    # Variables de entorno documentadas
 ├── .github/
 │   └── workflows/
 │       ├── deploy-frontend.yml
 │       ├── deploy-backend-despachos.yml
 │       └── deploy-backend-ventas.yml
-├── front_despacho/                             # Frontend React + Vite
+├── front_despacho/
 │   ├── Dockerfile
+│   ├── nginx.conf                  # Template con envsubst
 │   ├── src/
-│   │   ├── componentes/
-│   │   └── Routes/
-│   ├── package.json
-│   └── vite.config.js
+│   └── package.json
 ├── back-Despachos_SpringBoot/
-│   └── Springboot-API-REST-DESPACHO/           # Backend Despachos
+│   └── Springboot-API-REST-DESPACHO/
 │       ├── Dockerfile
 │       ├── pom.xml
 │       └── src/
 └── back-Ventas_SpringBoot/
-    └── Springboot-API-REST/                    # Backend Ventas
+    └── Springboot-API-REST/
         ├── Dockerfile
         ├── pom.xml
         └── src/
@@ -75,212 +124,201 @@ Innovatech/
 
 ---
 
-## Pre-requisitos
-
-- [Docker](https://docs.docker.com/get-docker/) >= 24.x
-- [Docker Compose](https://docs.docker.com/compose/install/) >= 2.x
-- [Git](https://git-scm.com/)
-
----
-
-## Instalación y Ejecución Local
-
-```bash
-# Clonar el repositorio
-git clone https://github.com/eliezercarrasco/Innovatech.git
-cd Innovatech
-
-# Levantar todos los servicios
-docker-compose up -d
-
-# Ver logs
-docker-compose logs -f
-
-# Detener todos los servicios
-docker-compose down
-```
-
-Servicios disponibles tras levantar:
-
-| Servicio | URL |
-|----------|-----|
-| Frontend | http://localhost:80 |
-| Backend Despachos | http://localhost:8081 |
-| Backend Ventas | http://localhost:8082 |
-| MySQL Despachos | localhost:3306 |
-| MySQL Ventas | localhost:3307 |
-
----
-
-## Variables de Entorno
-
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `MYSQL_ROOT_PASSWORD` | Contraseña root de MySQL | `rootpassword` |
-| `MYSQL_DATABASE` | Nombre de la base de datos | `despachos_db` |
-| `MYSQL_USER` | Usuario de la base de datos | `despachos_user` |
-| `MYSQL_PASSWORD` | Contraseña del usuario | `despachos_pass` |
-| `DB_ENDPOINT` | Host de la BD (nombre del servicio Docker) | `db-despachos` |
-| `DB_PORT` | Puerto MySQL | `3306` |
-| `DB_NAME` | Nombre de la BD en Spring Boot | `despachos_db` |
-| `DB_USERNAME` | Usuario de Spring Boot para la BD | `despachos_user` |
-| `DB_PASSWORD` | Contraseña de Spring Boot para la BD | `despachos_pass` |
-
----
-
 ## Pipeline CI/CD
 
-El pipeline se activa automáticamente con cada `push` a la rama `deploy`, usando filtros de ruta para detectar qué servicio cambió.
+Cada push a `main` o `deploy` dispara automáticamente el pipeline correspondiente según los archivos modificados.
 
 ```
-Push a rama deploy
+git push origin main
         │
-        ├── front_despacho/**  ──► deploy-frontend.yml
-        │       └── build imagen → push Docker Hub → SSH EC2 → docker run
+        ├── front_despacho/**           → CI/CD Frontend
+        │       ├── 1. docker buildx build ./front_despacho
+        │       ├── 2. docker push eliezercarrasco/innovatech-frontend:latest
+        │       └── 3. SSH EC2 → docker compose pull + up --no-deps frontend
         │
-        ├── back-Despachos_SpringBoot/**  ──► deploy-backend-despachos.yml
-        │       └── build imagen → push Docker Hub → SSH EC2 → docker run
+        ├── back-Despachos_SpringBoot/** → CI/CD Backend Despachos
+        │       ├── 1. docker buildx build ./back-Despachos_SpringBoot/...
+        │       ├── 2. docker push eliezercarrasco/innovatech-backend-despachos:latest
+        │       └── 3. SSH EC2 → docker compose pull + up --no-deps backend-despachos
         │
-        └── back-Ventas_SpringBoot/**  ──► deploy-backend-ventas.yml
-                └── build imagen → push Docker Hub → SSH EC2 → docker run
+        └── back-Ventas_SpringBoot/**   → CI/CD Backend Ventas
+                ├── 1. docker buildx build ./back-Ventas_SpringBoot/...
+                ├── 2. docker push eliezercarrasco/innovatech-backend-ventas:latest
+                └── 3. SSH EC2 → docker compose pull + up --no-deps backend-ventas
 ```
 
 ### Secrets requeridos en GitHub
 
-| Secret | Descripción |
-|--------|-------------|
-| `DOCKERHUB_USERNAME` | Usuario de Docker Hub |
-| `DOCKERHUB_TOKEN` | Token de acceso Docker Hub |
-| `EC2_FRONTEND_HOST` | IP pública de la instancia EC2 frontend |
-| `EC2_BACKEND_HOST` | IP pública/privada de la instancia EC2 backend |
-| `EC2_SSH_KEY` | Clave privada PEM para SSH |
-| `EC2_USERNAME` | Usuario SSH (`ec2-user` o `ubuntu`) |
-| `DB_ENDPOINT` | Host de la base de datos |
-| `DB_PORT` | Puerto de la base de datos |
-| `DB_NAME` | Nombre de la base de datos |
-| `DB_USERNAME` | Usuario de la base de datos |
-| `DB_PASSWORD` | Contraseña de la base de datos |
+Configurar en: **Settings → Secrets and variables → Actions**
+
+| Secret | Descripción | Valor |
+|---|---|---|
+| `DOCKERHUB_USERNAME` | Usuario de Docker Hub | `eliezercarrasco` |
+| `DOCKERHUB_TOKEN` | Access Token Docker Hub | Generado en hub.docker.com |
+| `EC2_FRONTEND_HOST` | IP pública EC2 (frontend) | `34.229.249.107` |
+| `EC2_BACKEND_HOST` | IP pública EC2 (backends) | `34.229.249.107` |
+| `EC2_USERNAME` | Usuario SSH de EC2 | `ubuntu` |
+| `EC2_SSH_KEY` | Contenido completo del archivo `.pem` | `-----BEGIN RSA PRIVATE KEY-----...` |
+
+### Imágenes en Docker Hub
+
+| Imagen | Tag |
+|---|---|
+| `eliezercarrasco/innovatech-frontend` | `latest` + SHA del commit |
+| `eliezercarrasco/innovatech-backend-despachos` | `latest` + SHA del commit |
+| `eliezercarrasco/innovatech-backend-ventas` | `latest` + SHA del commit |
+
+---
+
+## Docker — Contenedores y Healthchecks
+
+| Contenedor | Imagen | Puerto host | Healthcheck |
+|---|---|---|---|
+| `frontend` | `nginx:alpine` (multi-stage) | `80` | `wget http://127.0.0.1:8080/` |
+| `backend-despachos` | `eclipse-temurin:17-jre-alpine` | `8081` | `wget /api/v1/despachos` |
+| `backend-ventas` | `eclipse-temurin:17-jre-alpine` | `8082` | `wget /api/v1/ventas` |
+| `db-despachos` | `mysql:8.0` | — (solo interno) | `mysqladmin ping` |
+| `db-ventas` | `mysql:8.0` | — (solo interno) | `mysqladmin ping` |
+
+La cadena de arranque garantizada por `depends_on: service_healthy`:
+
+```
+db-despachos (healthy) ──► backend-despachos (healthy) ──┐
+                                                          ├──► frontend
+db-ventas    (healthy) ──► backend-ventas    (healthy) ──┘
+```
+
+### Persistencia con Named Volumes
+
+| Volumen | Contenedor | Datos |
+|---|---|---|
+| `mysql-despachos-data` | `db-despachos` | `/var/lib/mysql` |
+| `mysql-ventas-data` | `db-ventas` | `/var/lib/mysql` |
+
+Los datos sobreviven a `docker compose down`. Solo se eliminan con `docker compose down -v`.
+
+---
+
+## Ejecución Local
+
+### Pre-requisitos
+
+- Docker >= 24.x
+- Docker Compose >= 2.x
+- Git
+
+### Comandos
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/eliezercarrasco/Innovatech.git
+cd Innovatech
+
+# 2. Levantar todos los servicios (build desde código fuente)
+docker compose up -d
+
+# 3. Verificar que todos los contenedores estén healthy
+docker compose ps
+
+# 4. Ver logs en tiempo real
+docker compose logs -f
+
+# 5. Detener sin borrar datos
+docker compose down
+
+# 6. Detener y borrar datos (reset completo)
+docker compose down -v
+```
+
+### URLs locales
+
+| Servicio | URL |
+|---|---|
+| Frontend | http://localhost |
+| Swagger Despachos | http://localhost:8081/swagger-ui.html |
+| Swagger Ventas | http://localhost:8082/swagger-ui.html |
 
 ---
 
 ## Despliegue en AWS EC2
 
-Se utilizan al menos dos instancias EC2:
+### Setup inicial (una sola vez)
 
-| Instancia | Rol | Acceso |
-|-----------|-----|--------|
-| EC2 Frontend | Sirve el frontend Nginx | Pública (Security Group: puerto 80 abierto) |
-| EC2 Backend | Ejecuta ambos backends + bases de datos | Privada o pública restringida (puertos 8081, 8082, 3306, 3307) |
+```bash
+# Conectar a la instancia
+ssh -i innovatech-key.pem ubuntu@34.229.249.107
 
-**Security Groups recomendados:**
-- Frontend: entrada en puerto 80 desde `0.0.0.0/0`, puerto 22 desde IP del equipo
-- Backend: entrada en puertos 8081-8082 desde el Security Group del frontend, puerto 22 desde IP del equipo
+# Instalar dependencias
+sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2 git
+sudo usermod -aG docker ubuntu && newgrp docker
+
+# Clonar el repositorio
+git clone https://github.com/eliezercarrasco/Innovatech.git /home/ubuntu/innovatech
+cd /home/ubuntu/innovatech
+
+# Levantar el stack de producción (imágenes desde Docker Hub)
+docker compose -f docker-compose.prod.yml up -d
+
+# Verificar estado
+docker compose -f docker-compose.prod.yml ps
+```
+
+### Deploy automático (CI/CD)
+
+Después del setup inicial, cada push al repositorio actualiza automáticamente la EC2. También se puede disparar manualmente desde:
+
+**GitHub → Actions → [workflow] → Run workflow**
 
 ---
 
 ## Endpoints de las APIs
 
-### Backend Despachos (`http://localhost:8081`)
+### Backend Despachos — `http://34.229.249.107:8081`
 
 | Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/v1/despachos` | Listar todos los despachos |
-| GET | `/api/v1/despachos/{idDespacho}` | Obtener despacho por ID |
-| POST | `/api/v1/despachos` | Crear nuevo despacho |
-| PUT | `/api/v1/despachos/{idDespacho}` | Actualizar despacho |
-| DELETE | `/api/v1/despachos/{idDespacho}` | Eliminar despacho |
+|---|---|---|
+| `GET` | `/api/v1/despachos` | Listar todos los despachos |
+| `GET` | `/api/v1/despachos/{id}` | Obtener despacho por ID |
+| `POST` | `/api/v1/despachos` | Crear nuevo despacho |
+| `PUT` | `/api/v1/despachos/{id}` | Actualizar despacho |
+| `DELETE` | `/api/v1/despachos/{id}` | Eliminar despacho |
 
-Swagger UI: http://localhost:8081/swagger-ui.html
-
-### Backend Ventas (`http://localhost:8082`)
+### Backend Ventas — `http://34.229.249.107:8082`
 
 | Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/v1/ventas` | Listar todas las ventas |
-| GET | `/api/v1/ventas/{idVenta}` | Obtener venta por ID |
-| POST | `/api/v1/ventas` | Crear nueva venta |
-| PUT | `/api/v1/ventas/{idVenta}` | Actualizar venta |
-| DELETE | `/api/v1/ventas/{idVenta}` | Eliminar venta |
-
-Swagger UI: http://localhost:8082/swagger-ui.html
+|---|---|---|
+| `GET` | `/api/v1/ventas` | Listar todas las ventas |
+| `GET` | `/api/v1/ventas/{id}` | Obtener venta por ID |
+| `POST` | `/api/v1/ventas` | Crear nueva venta |
+| `PUT` | `/api/v1/ventas/{id}` | Actualizar venta |
+| `DELETE` | `/api/v1/ventas/{id}` | Eliminar venta |
 
 ---
 
-## Persistencia de Datos
+## URLs Públicas (AWS EC2)
 
-Se utilizan **named volumes** (volúmenes nombrados) en lugar de bind mounts.
-
-### Volúmenes definidos
-
-| Volumen | Servicio | Mount point en contenedor |
-|---------|----------|--------------------------|
-| `mysql-despachos-data` | `db-despachos` | `/var/lib/mysql` |
-| `mysql-ventas-data` | `db-ventas` | `/var/lib/mysql` |
-
-### Por qué named volumes y no bind mounts
-
-| Criterio | Named Volume | Bind Mount |
-|----------|-------------|------------|
-| Gestión | Docker gestiona permisos y ubicación | Depende del sistema de archivos del host |
-| Portabilidad | Funciona igual en Linux, macOS, Windows y EC2 | Requiere que exista el path exacto en el host |
-| Rendimiento I/O | Optimizado por Docker | Variable según OS y filesystem |
-| Aislamiento | Ciclo de vida independiente del contenedor | Acoplado al directorio del host |
-| Despliegue en AWS | Transparente — Docker crea el volumen automáticamente | Requiere crear directorios en EC2 manualmente |
-
-### Demostración de persistencia
-
-```bash
-# 1. Levantar el stack
-docker compose up -d
-
-# 2. Insertar datos
-curl -X POST http://localhost/api/v1/ventas \
-  -H "Content-Type: application/json" \
-  -d '{"direccionCompra":"Av. Test 123","valorCompra":9990,"fechaCompra":"2026-05-12","despachoGenerado":false}'
-
-# 3. Verificar datos insertados
-curl http://localhost/api/v1/ventas
-# → [{"idVenta":1,"direccionCompra":"Av. Test 123",...}]
-
-# 4. Bajar contenedores SIN eliminar volúmenes
-docker compose down
-# Los volúmenes siguen existentes:
-docker volume ls   # → evaluacionparcial2_mysql-despachos-data / mysql-ventas-data
-
-# 5. Levantar nuevamente
-docker compose up -d
-
-# 6. Verificar que los datos persisten
-curl http://localhost/api/v1/ventas
-# → [{"idVenta":1,"direccionCompra":"Av. Test 123",...}]  ← dato original intacto
-```
-
-### Destrucción controlada
-
-```bash
-# Elimina contenedores Y volúmenes (reseteo total de datos)
-docker compose down -v
-
-# Después de docker compose up -d los datos estarán vacíos:
-curl http://localhost/api/v1/ventas   # → []
-```
-
-> **`down` vs `down -v`**: `docker compose down` elimina contenedores y redes pero **preserva** los volúmenes. `docker compose down -v` además elimina los volúmenes nombrados. Usar `-v` solo cuando se quiere un reseteo completo intencional de datos.
-
-### Ubicación física en el host
-
-```bash
-docker volume inspect evaluacionparcial2_mysql-despachos-data
-# "Mountpoint": "/var/lib/docker/volumes/evaluacionparcial2_mysql-despachos-data/_data"
-```
-
-Los datos de MySQL residen en el filesystem de Docker Engine, no en el directorio del proyecto, lo que garantiza que ningún `git clean` o limpieza del workspace los elimine accidentalmente.
+| Servicio | URL |
+|---|---|
+| Frontend | http://34.229.249.107 |
+| Swagger Despachos | http://34.229.249.107:8081/swagger-ui.html |
+| Swagger Ventas | http://34.229.249.107:8082/swagger-ui.html |
 
 ---
 
-## Autores
+## Estado Actual Validado
 
-- **Eliezer Carrasco** - [elie.carrasco@duocuc.cl](mailto:elie.carrasco@duocuc.cl)
-
-*Evaluación Parcial N°2 - Herramientas DevOps (ISY1101) - DuocUC*
-Trigger pipeline CI/CD
+| Componente | Estado |
+|---|---|
+| 5 contenedores Docker | healthy |
+| Frontend React/Nginx | HTTP 200 OK |
+| API Despachos | HTTP 200 OK |
+| API Ventas | HTTP 200 OK |
+| Swagger Despachos | Operativo |
+| Swagger Ventas | Operativo |
+| CI/CD GitHub Actions | Operativo |
+| Persistencia MySQL | Validada (down → up con datos intactos) |
+| Docker networking bridge | Operativo |
+| Named volumes | Operativos |
+| envsubst Nginx | Operativo |
+| AWS EC2 | Desplegado y accesible públicamente |
+| Docker Hub | 3 imágenes publicadas |
